@@ -5,11 +5,6 @@ import time
 
 from random import randint
 
-MIN_CONTOUR_AREA = 100
-
-RESIZED_IMAGE_WIDTH = 20
-RESIZED_IMAGE_HEIGHT = 30
-
 def calculateDistance(contour1, contour2):
     x1, y1, w1, h1 = cv2.boundingRect(contour1)
     x2, y2, w2, h2 = cv2.boundingRect(contour2)

@@ -6,4 +6,4 @@ Student computer vision project
 * Python 3.7
 
 Code template taken from [here](https://github.com/PUTvision/ImageProcessingCourse/tree/master/project_template_2020) \
-OCR files for polish license plates were created based on [this](https://github.com/MicrocontrollersAndMore/OpenCV_3_KNN_Character_Recognition_Python) KNN with some modifications using arklatrs font
+OCR files for polish license plates were created based on [this](https://github.com/MicrocontrollersAndMore/OpenCV_3_KNN_Character_Recognition_Python) KNN using arklatrs font. Some modifications were made to contour detection methods to better suit my application 

@@ -51,13 +51,33 @@ def calculateAverageHeightGroups(groups):
     result = result / no_elem
     return result
 
+def calculateAverageArea(contours):
+    result = 0
+    for c in contours:
+        x, y, w, h = cv2.boundingRect(c)
+        result = result + (w * h)
+    result = result / len(contours)
+    return result
+
+def calculateMaxArea(contours):
+    result = 0
+    for c in contours:
+        x, y, w, h = cv2.boundingRect(c)
+        if w * h > result:
+            result = (w * h)
+    return result
+
 def preliminaryProcessing(image):
+    image_height, image_width, image_channels = image.shape
+    blockSize = int(image_width / 25.6)
+    if blockSize % 2 == 0:
+        blockSize += 1
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     hue, saturation, value = cv2.split(hsv)
     gray = value
     gray = cv2.equalizeHist(gray)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 101, 5)
+    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize, 5)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     return thresh, contours
 
@@ -181,6 +201,91 @@ def printLengthInfo(groups):
         all_contours_number = all_contours_number + len(g)
     print("number of contours in total:", all_contours_number)
     print("groups:", group_sizes)
+
+def chooseSymbols(groups):
+    allContoursWithData = []
+    group2 = []
+    group3 = []
+    group4 = []
+    group5 = []
+    group7 = []
+    for i in range(len(groups)):
+        if len(groups[i]) == 8:
+            # discard left contour (probably EU/PL symbol)
+            groups[i].remove(groups[i][0])
+            # and add it to the list of potential plates
+            group7.append(groups[i])
+            print('removed 1 contour - probably EU/PL')
+        elif len(groups[i]) == 7:
+            group7.append(groups[i])
+        if len(groups[i]) == 2:
+            group2.append(groups[i])
+        if len(groups[i]) == 5:
+            group5.append(groups[i])
+        if len(groups[i]) == 4:
+            group4.append(groups[i])
+        if len(groups[i]) == 3:
+            group3.append(groups[i])
+
+    # calculate total number of symbols
+    no = 0
+    for g in groups:
+        no = no + len(g)
+
+    # 1 plate with 7 symbols
+    if len(group7) == 1:
+        for c in group7[0]:
+            allContoursWithData.append(c)
+    # 1 plate in parts of 2 and 5
+    elif len(group2) == 1 and len(group5) == 1:
+        for c in group2[0]:
+            allContoursWithData.append(c)
+        for c in group5[0]:
+            allContoursWithData.append(c)
+    # 1 plate in parsts of 3 and 4
+    elif len(group3) == 1 and len(group4) == 1:
+        for c in group3[0]:
+            allContoursWithData.append(c)
+        for c in group4[0]:
+            allContoursWithData.append(c)
+    # 7 symbols in total
+    elif no == 7:
+        for g in groups:
+            for c in g:
+                allContoursWithData.append(c)
+    # 8 symbols in total
+    elif no == 8:
+        groups[0].remove(groups[0][0])
+        for g in groups:
+            for c in g:
+                allContoursWithData.append(c)
+    # 9 symbols in total
+    elif no == 9:
+        groups[0].remove(groups[0][0])
+        for g in groups:
+            for c in g:
+                allContoursWithData.append(c)
+    # only one group
+    elif len(groups) == 1:
+        for c in groups[0]:
+            allContoursWithData.append(c)
+    # if there is still a mess
+    else:
+        max_area = 0
+        for g in groups:
+            max_area_temp = calculateMaxArea(g)
+            if max_area_temp > max_area:
+                max_area = max_area_temp
+        for g in groups:
+            max_area_temp = calculateMaxArea(g)
+            if max_area_temp > max_area * 0.75:
+                for c in g:
+                    allContoursWithData.append(c)
+
+        # discard symbols after 7th
+        allContoursWithData = allContoursWithData[:7]
+
+    return allContoursWithData
 
 def drawContours(contours, image):
     for c in contours:

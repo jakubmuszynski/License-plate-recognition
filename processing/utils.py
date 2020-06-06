@@ -3,7 +3,6 @@ import numpy as np
 import cv2
 import time
 import os
-import operator
 
 MIN_CONTOUR_AREA = 100
 
@@ -36,8 +35,19 @@ def createValidContoursList(npaContours):
         validContoursWithData.append(contourWithData)                                   # add contour with data object to list of all contours with data
     return validContoursWithData
 
+def recognize(image, kNearest, validContoursWithData):
+    strFinalString = ""
+    for contourWithData in validContoursWithData:
+        imgROI = image[contourWithData.intRectY : contourWithData.intRectY + contourWithData.intRectHeight, contourWithData.intRectX : contourWithData.intRectX + contourWithData.intRectWidth]
+        imgROIResized = cv2.resize(imgROI, (RESIZED_IMAGE_WIDTH, RESIZED_IMAGE_HEIGHT))
+        npaROIResized = imgROIResized.reshape((1, RESIZED_IMAGE_WIDTH * RESIZED_IMAGE_HEIGHT))
+        npaROIResized = np.float32(npaROIResized)
+        retval, npaResults, neigh_resp, dists = kNearest.findNearest(npaROIResized, k = 1)
+        strCurrentChar = str(chr(int(npaResults[0][0])))
+        strFinalString = strFinalString + strCurrentChar
+    return strFinalString
+
 class ContourWithData():
-    # member variables
     npaContour = None           # contour
     boundingRect = None         # bounding rect for contour
     intRectX = 0                # bounding rect top left corner x location
@@ -104,67 +114,14 @@ def perform_processing(image: np.ndarray) -> str:
     # print info about number of contours
     library.printLengthInfo(groups)
 
-    group2 = []
-    group5 = []
-    group7 = []
-    for i in range(len(groups)):
-        # if group has 8 members
-        if len(groups[i]) == 8:
-            # discard left contour (probably EU/PL symbol)
-            groups[i].remove(groups[i][0])
-            # and add it to the list of potential plates
-            group7.append(groups[i])
-            print('removed 1 contour - probably EU/PL')
-        # else if group has 7 members
-        elif len(groups[i]) == 7:
-            # add it to list of potential plates
-            group7.append(groups[i])
-        # if group has 2 members
-        if len(groups[i]) == 2:
-            # add it to list of potential 1st plate parts
-            group2.append(groups[i])
-        # if group has 5 members
-        if len(groups[i]) == 5:
-            # add it to list of potential 2nd plate parts
-            group5.append(groups[i])
-
-    # declare list
-    allContoursWithData = []
-
-    # if there is 1 plate with 7 symbols
-    if len(group7) == 1:
-        for c in group7[0]:
-            allContoursWithData.append(c)
-    # if there is 1 plate in 2 separate parts
-    elif len(group2) == 1 and len(group5) == 1:
-        for c in group2[0]:
-            allContoursWithData.append(c)
-        for c in group5[0]:
-            allContoursWithData.append(c)
-    # if there is only one group
-    elif len(groups) == 1:
-        # just work with what you got
-        for c in groups[0]:
-            allContoursWithData.append(c)
+    # choose contours
+    allContoursWithData = library.chooseSymbols(groups)
 
     # create final contours list
     validContoursWithData = createValidContoursList(allContoursWithData)
 
-    # sort contours from left to right
-    validContoursWithData.sort(key = operator.attrgetter("intRectX"))
-
-    # declare final string
-    strFinalString = ""
-
-    for contourWithData in validContoursWithData:
-        imgROI = thresh[contourWithData.intRectY : contourWithData.intRectY + contourWithData.intRectHeight, contourWithData.intRectX : contourWithData.intRectX + contourWithData.intRectWidth]
-        imgROIResized = cv2.resize(imgROI, (RESIZED_IMAGE_WIDTH, RESIZED_IMAGE_HEIGHT))
-        npaROIResized = imgROIResized.reshape((1, RESIZED_IMAGE_WIDTH * RESIZED_IMAGE_HEIGHT))
-        npaROIResized = np.float32(npaROIResized)
-        retval, npaResults, neigh_resp, dists = kNearest.findNearest(npaROIResized, k = 1)
-        strCurrentChar = str(chr(int(npaResults[0][0])))
-        strFinalString = strFinalString + strCurrentChar
-
+    # recognize characters and print
+    strFinalString = recognize(thresh, kNearest, validContoursWithData)
     print(strFinalString)
 
     # drawing
@@ -183,4 +140,4 @@ def perform_processing(image: np.ndarray) -> str:
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    return 'todo'
+    return strFinalString

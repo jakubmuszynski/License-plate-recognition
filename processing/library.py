@@ -282,8 +282,8 @@ def chooseSymbols(groups):
                 for c in g:
                     allContoursWithData.append(c)
 
-        # discard symbols after 7th
-        allContoursWithData = allContoursWithData[:7]
+    # discard symbols after 7th
+    allContoursWithData = allContoursWithData[:7]
 
     return allContoursWithData
 

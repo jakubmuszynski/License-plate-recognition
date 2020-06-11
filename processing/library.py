@@ -1,5 +1,6 @@
 import cv2
 import math
+import numpy as np
 from random import randint # for random colors only
 
 def calculateDistance(contour1, contour2):
@@ -38,6 +39,14 @@ def calculateAverageHeight(contours):
     result = result / len(contours)
     return result
 
+def calculateMaxHeight(contours):
+    result = 0
+    for c in contours:
+        x, y, w, h = cv2.boundingRect(c)
+        if h > result:
+            result = h
+    return result
+
 def calculateAverageHeightGroups(groups):
     result = 0
     for g in groups:
@@ -67,8 +76,7 @@ def calculateMaxArea(contours):
             result = (w * h)
     return result
 
-def preliminaryProcessing(image):
-    image_height, image_width, image_channels = image.shape
+def preliminaryProcessing(image, image_width):
     blockSize = int(image_width / 25.6)
     if blockSize % 2 == 0:
         blockSize += 1
@@ -77,6 +85,15 @@ def preliminaryProcessing(image):
     gray = value
     gray = cv2.equalizeHist(gray)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize, 5)
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    return thresh, contours
+
+def preliminaryProcessing2(image, image_width):
+    blockSize = int(image_width / 25.6)
+    if blockSize % 2 == 0:
+        blockSize += 1
+    blur = cv2.GaussianBlur(image, (5, 5), 0)
     thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize, 5)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     return thresh, contours
@@ -202,6 +219,62 @@ def printLengthInfo(groups):
     print("number of contours in total:", all_contours_number)
     print("groups:", group_sizes)
 
+def cropChosenContours(image, contours):
+    image_height, image_width, image_channels = image.shape
+    temp1_x = []
+    temp1_y = []
+    temp2_x = []
+    temp2_y = []
+    for i in range(len(contours)):
+        bb_x, bb_y, bb_w, bb_h = cv2.boundingRect(contours[i])
+        temp1_x.append(bb_x)
+        temp1_x.append(bb_x+bb_w)
+        temp1_y.append(bb_y)
+        temp1_y.append(bb_y)
+        temp2_x.append(bb_x)
+        temp2_x.append(bb_x+bb_w)
+        temp2_y.append(bb_y+bb_h)
+        temp2_y.append(bb_y+bb_h)
+    x1 = np.array(temp1_x, dtype=int)
+    y1 = np.array(temp1_y, dtype=int)
+    x2 = np.array(temp2_x, dtype=int)
+    y2 = np.array(temp2_y, dtype=int)
+    lin_points_up = list(zip(x1, y1))
+    lin_points_down = list(zip(x2, y2))
+    border = image_width * 0.007
+    # uncomment to draw lines
+    # up_left = (int(lin_points_up[0][0] - border), int(lin_points_up[0][1] - border))
+    # up_right = (int(lin_points_up[len(lin_points_up) - 1][0] + border), int(lin_points_up[len(lin_points_up) - 1][1] - border))
+    # down_left = (int(lin_points_down[0][0] - border), int(lin_points_down[0][1] + border))
+    # down_right = (int(lin_points_down[len(lin_points_down) - 1][0] + border), int(lin_points_down[len(lin_points_down) - 1][1] + border))
+    # cv2.line(image, (up_left), (up_right), (0, 0, 255), thickness=20)
+    # cv2.line(image, (down_left), (down_right), (255, 0, 0), thickness=20)
+    src_pts = np.array([[int(lin_points_up[0][0] - border), int(lin_points_up[0][1] - border)], [int(lin_points_up[len(lin_points_up) - 1][0] + border), int(lin_points_up[len(lin_points_up) - 1][1] - border)], [int(lin_points_down[0][0] - border), int(lin_points_down[0][1] + border)], [int(lin_points_down[len(lin_points_down) - 1][0] + border), int(lin_points_down[len(lin_points_down) - 1][1] + border)]], dtype="float32")
+    width = int(np.sqrt((lin_points_up[0][0] - lin_points_up[len(lin_points_up) - 1][0]) ** 2 + (lin_points_up[0][1] - lin_points_up[len(lin_points_up) - 1][1]) ** 2))
+    height = calculateMaxHeight(contours)
+    dst_pts = np.array([[0, 0], [width, 0], [0, height], [width, height]], dtype="float32")
+    M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+    result = cv2.warpPerspective(image, M, (width, height), None, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT,(255, 255, 255))
+    return result
+
+def repeatOperationsOnCrop(contours, thresh, image_width):
+    # crop chosen contours from thresholded image
+    thresh_to_crop = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+    cropped = cropChosenContours(thresh_to_crop, contours)
+    # repeat the detection/selection process
+    thresh_crop, contours_crop = preliminaryProcessing(cropped, image_width)
+    contours_crop = selectionContourRatios(contours_crop, image_width)
+    contours_crop = selectionDistanceAngle(contours_crop, image_width)
+    contours_crop = selectionAverageHeight(contours_crop, image_width)
+    contours_crop = discardDuplicates(contours_crop)
+    contours_crop = discardInnerContours(contours_crop, image_width)
+    contours_crop = sorted(contours_crop, key=lambda c: cv2.boundingRect(c)[0])
+    groups_crop = grouping(contours_crop, image_width * 0.12)
+    # print info about number of contours
+    print('-----REPEATED DETECTION-----')
+    printLengthInfo(groups_crop)
+    return groups_crop, thresh_crop
+
 def chooseSymbols(groups):
     allContoursWithData = []
     group2 = []
@@ -226,12 +299,10 @@ def chooseSymbols(groups):
             group4.append(groups[i])
         if len(groups[i]) == 3:
             group3.append(groups[i])
-
     # calculate total number of symbols
     no = 0
     for g in groups:
         no = no + len(g)
-
     # 1 plate with 7 symbols
     if len(group7) == 1:
         for c in group7[0]:
@@ -242,11 +313,18 @@ def chooseSymbols(groups):
             allContoursWithData.append(c)
         for c in group5[0]:
             allContoursWithData.append(c)
-    # 1 plate in parsts of 3 and 4
+    # 1 plate in parts of 3 and 4
     elif len(group3) == 1 and len(group4) == 1:
         for c in group3[0]:
             allContoursWithData.append(c)
         for c in group4[0]:
+            allContoursWithData.append(c)
+    # 1 plate in parts of 2 and 5 with PL/EU on the left
+    elif len(group3) == 1 and len(group5) == 1:
+        group3[0].remove(group3[0][0])
+        for c in group3[0]:
+            allContoursWithData.append(c)
+        for c in group5[0]:
             allContoursWithData.append(c)
     # 7 symbols in total
     elif no == 7:
@@ -281,11 +359,11 @@ def chooseSymbols(groups):
             if max_area_temp > max_area * 0.75:
                 for c in g:
                     allContoursWithData.append(c)
-
+    # every contour
+    rawContoursWithData = allContoursWithData
     # discard symbols after 7th
     allContoursWithData = allContoursWithData[:7]
-
-    return allContoursWithData
+    return allContoursWithData, rawContoursWithData
 
 def drawContours(contours, image):
     for c in contours:

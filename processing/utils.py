@@ -11,13 +11,13 @@ RESIZED_IMAGE_HEIGHT = 30
 
 def readOCR():
     try:
-        npaClassifications = np.loadtxt("classifications.txt", np.float32) # read in training classifications
+        npaClassifications = np.loadtxt("data/classifications.txt", np.float32) # read in training classifications
     except:
         print("error, unable to open classifications.txt, exiting program")
         os.system("pause")
         return
     try:
-        npaFlattenedImages = np.loadtxt("flattened_images.txt", np.float32) # read in training images
+        npaFlattenedImages = np.loadtxt("data/flattened_images.txt", np.float32) # read in training images
     except:
         print("error, unable to open flattened_images.txt, exiting program")
         os.system("pause")
@@ -170,11 +170,11 @@ def perform_processing(image: np.ndarray) -> str:
     print('I worked for', format((end - start), '.2f'), 'seconds\n')
 
     # show result images
-    cv2.imshow('threshold image', thresh_drawing)
-    if repeated_detection:
-        cv2.imshow('crop result', thresh_crop_drawing)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('threshold image', thresh_drawing)
+    # if repeated_detection:
+    #     cv2.imshow('crop result', thresh_crop_drawing)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     if repeated_detection_allowance:
         return strFinalString2

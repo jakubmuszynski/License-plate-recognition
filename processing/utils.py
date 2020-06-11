@@ -158,6 +158,9 @@ def perform_processing(image: np.ndarray) -> str:
         if strFinalString2[0] != 'B' and strFinalString2[0] != 'C' and strFinalString2[0] != 'D' and strFinalString2[0] != 'E' and strFinalString2[0] != 'F' and strFinalString2[0] != 'G' and strFinalString2[0] != 'K' and strFinalString2[0] != 'L' and strFinalString2[0] != 'N' and strFinalString2[0] != 'O' and strFinalString2[0] != 'P' and strFinalString2[0] != 'R' and strFinalString2[0] != 'S' and strFinalString2[0] != 'T' and strFinalString2[0] != 'W' and strFinalString2[0] != 'Z':
             repeated_detection_allowance = False
             print('WARNING: incorrect first character in repeated detection - rejecting')
+        if strFinalString2[1] == '1' or strFinalString2[1] == '2' or strFinalString2[1] == '3' or strFinalString2[1] == '4' or strFinalString2[1] == '5' or strFinalString2[1] == '6' or strFinalString2[1] == '7' or strFinalString2[1] == '8' or strFinalString2[1] == '9':
+            repeated_detection_allowance = False
+            print('WARNING: incorrect second character in repeated detection - rejecting')
         if len(strFinalString2) < len(strFinalString1):
             repeated_detection_allowance = False
             print('WARNING: incorrect repeated detection result size - rejecting')

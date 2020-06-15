@@ -36,15 +36,26 @@ def createValidContoursList(npaContours):
     return validContoursWithData
 
 def recognize(image, kNearest, validContoursWithData):
+    previousChar = 'Q'
+    counter = 0
     strFinalString = ""
     for contourWithData in validContoursWithData:
+        counter += 1
         imgROI = image[contourWithData.intRectY : contourWithData.intRectY + contourWithData.intRectHeight, contourWithData.intRectX : contourWithData.intRectX + contourWithData.intRectWidth]
         imgROIResized = cv2.resize(imgROI, (RESIZED_IMAGE_WIDTH, RESIZED_IMAGE_HEIGHT))
         npaROIResized = imgROIResized.reshape((1, RESIZED_IMAGE_WIDTH * RESIZED_IMAGE_HEIGHT))
         npaROIResized = np.float32(npaROIResized)
         retval, npaResults, neigh_resp, dists = kNearest.findNearest(npaROIResized, k = 1)
         strCurrentChar = str(chr(int(npaResults[0][0])))
+        if counter == 3:
+            if strCurrentChar == 'O':
+                if previousChar != 'P' and previousChar != 'Z' and previousChar != 'G' and previousChar != 'K' and previousChar != 'L':
+                    strCurrentChar = '0'
+        if counter >= 4:
+            if strCurrentChar == 'O':
+                strCurrentChar = '0'
         strFinalString = strFinalString + strCurrentChar
+        previousChar = strCurrentChar
     return strFinalString
 
 class ContourWithData():

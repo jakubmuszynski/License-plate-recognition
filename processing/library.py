@@ -1,7 +1,8 @@
+from processing import OCR_library
 import cv2
 import math
 import numpy as np
-from random import randint # for random colors only
+from random import randint  # for random colors only
 
 def calculateDistance(contour1, contour2):
     x1, y1, w1, h1 = cv2.boundingRect(contour1)
@@ -177,6 +178,21 @@ def discardInnerContours(contours, image_width):
                     contours.remove(c)
     return contours
 
+def selection(contours, image_width):
+    # selecting contours - width/image_width and height/image_width ratios
+    contours = selectionContourRatios(contours, image_width)
+    # selecting contours - minimum 1 close neighbour, correct angle between them
+    contours = selectionDistanceAngle(contours, image_width)
+    # selecting contours - difference from average height
+    contours = selectionAverageHeight(contours, image_width)
+    # selecting contours - discarding duplicates
+    contours = discardDuplicates(contours)
+    # selecting contours - discarding inner contours
+    contours = discardInnerContours(contours, image_width)
+    # sort contours from left to right
+    contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
+    return contours
+
 def group(contours, radius):
     # assume the first contour as first element in friends group
     friends = []
@@ -210,12 +226,23 @@ def grouping(contours, radius):
         result.append(friends)
     return result
 
-def printLengthInfo(groups):
+def printLengthInfoOverall(groups):
     all_contours_number = 0
     group_sizes = []
     for g in groups:
         group_sizes.append(len(g))
         all_contours_number = all_contours_number + len(g)
+    print('-----OVERALL DETECTION-----')
+    print("number of contours in total:", all_contours_number)
+    print("groups:", group_sizes)
+
+def printLengthInfoRepeated(groups):
+    all_contours_number = 0
+    group_sizes = []
+    for g in groups:
+        group_sizes.append(len(g))
+        all_contours_number = all_contours_number + len(g)
+    print('-----REPEATED DETECTION-----')
     print("number of contours in total:", all_contours_number)
     print("groups:", group_sizes)
 
@@ -271,8 +298,7 @@ def repeatOperationsOnCrop(contours, thresh, image_width):
     contours_crop = sorted(contours_crop, key=lambda c: cv2.boundingRect(c)[0])
     groups_crop = grouping(contours_crop, image_width * 0.12)
     # print info about number of contours
-    print('-----REPEATED DETECTION-----')
-    printLengthInfo(groups_crop)
+    printLengthInfoRepeated(groups_crop)
     return groups_crop, thresh_crop
 
 def chooseSymbols(groups):
@@ -364,6 +390,54 @@ def chooseSymbols(groups):
     # discard symbols after 7th
     allContoursWithData = allContoursWithData[:7]
     return allContoursWithData, rawContoursWithData
+
+def repeatDecision(rawContoursWithData):
+    if len(rawContoursWithData) <= 8 and len(rawContoursWithData) >= 6:
+        rep_det = True
+        rep_det_all = True
+    else:
+        rep_det = False
+        rep_det_all = False
+        print('WARNING: repeated detection aborted')
+    return rep_det, rep_det_all
+
+def repeatedDetection(kNearest, rawContoursWithData, thresh, image_width):
+    # crop chosen contours group and repeat detection process
+    groups_crop, thresh_crop = repeatOperationsOnCrop(rawContoursWithData, thresh, image_width)
+    # choose contours
+    allContoursWithData, rawContoursWithData = chooseSymbols(groups_crop)
+    # create final contours list
+    validContoursWithData = OCR_library.createValidContoursList(allContoursWithData)
+    # recognize characters and print
+    strFinalString2 = OCR_library.recognize(thresh_crop, kNearest, validContoursWithData)
+    # drawing
+    thresh_crop_drawing = cv2.cvtColor(thresh_crop, cv2.COLOR_GRAY2BGR)
+    drawGroups(groups_crop, thresh_crop_drawing)
+    return strFinalString2, thresh_crop_drawing
+
+def resizeAndWarn(repeated_detection, repeated_detection_allowance, thresh_crop_drawing, strFinalString1, strFinalString2):
+    if repeated_detection:
+        thresh_crop_drawing = resizeImage(thresh_crop_drawing, 1000)
+        repeated_detection_allowance = RDA(repeated_detection_allowance, strFinalString1, strFinalString2)
+    return repeated_detection_allowance, thresh_crop_drawing
+
+def RDA(repeated_detection_allowance, strFinalString1, strFinalString2):
+    if strFinalString2[0] != 'B' and strFinalString2[0] != 'C' and strFinalString2[0] != 'D' and strFinalString2[
+        0] != 'E' and strFinalString2[0] != 'F' and strFinalString2[0] != 'G' and strFinalString2[0] != 'K' and \
+            strFinalString2[0] != 'L' and strFinalString2[0] != 'N' and strFinalString2[0] != 'O' and strFinalString2[
+        0] != 'P' and strFinalString2[0] != 'R' and strFinalString2[0] != 'S' and strFinalString2[0] != 'T' and \
+            strFinalString2[0] != 'W' and strFinalString2[0] != 'Z':
+        repeated_detection_allowance = False
+        print('WARNING: incorrect first character in repeated detection - rejecting')
+    if strFinalString2[1] == '1' or strFinalString2[1] == '2' or strFinalString2[1] == '3' or strFinalString2[
+        1] == '4' or strFinalString2[1] == '5' or strFinalString2[1] == '6' or strFinalString2[1] == '7' or \
+            strFinalString2[1] == '8' or strFinalString2[1] == '9':
+        repeated_detection_allowance = False
+        print('WARNING: incorrect second character in repeated detection - rejecting')
+    if len(strFinalString2) < len(strFinalString1):
+        repeated_detection_allowance = False
+        print('WARNING: incorrect repeated detection result size - rejecting')
+    return repeated_detection_allowance
 
 def drawContours(contours, image):
     for c in contours:

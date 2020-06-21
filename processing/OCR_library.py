@@ -35,10 +35,10 @@ def createValidContoursList(npaContours):
 def recognize(image, kNearest, validContoursWithData):
     previouspreviousChar = 'Q'
     previousChar = 'Q'
-    counter = 0
+    counter = 1
     strFinalString = ""
+    skipSymbol = False
     for contourWithData in validContoursWithData:
-        counter += 1
         imgROI = image[contourWithData.intRectY : contourWithData.intRectY + contourWithData.intRectHeight, contourWithData.intRectX : contourWithData.intRectX + contourWithData.intRectWidth]
         imgROIResized = cv2.resize(imgROI, (RESIZED_IMAGE_WIDTH, RESIZED_IMAGE_HEIGHT))
         npaROIResized = imgROIResized.reshape((1, RESIZED_IMAGE_WIDTH * RESIZED_IMAGE_HEIGHT))
@@ -46,8 +46,16 @@ def recognize(image, kNearest, validContoursWithData):
         retval, npaResults, neigh_resp, dists = kNearest.findNearest(npaROIResized, k = 1)
         strCurrentChar = str(chr(int(npaResults[0][0])))
 
-        # first 2 symbols cant be numbers
-        if counter == 1 or counter == 2:
+        # correct first symbol
+        if counter == 1:
+            if strCurrentChar != 'B' and strCurrentChar != 'C' and strCurrentChar != 'D' and strCurrentChar != 'E' and \
+                    strCurrentChar != 'F' and strCurrentChar != 'G' and strCurrentChar != 'K' and strCurrentChar != 'L' and \
+                    strCurrentChar != 'N' and strCurrentChar != 'O' and strCurrentChar != 'P' and strCurrentChar != 'R' and \
+                    strCurrentChar != 'S' and strCurrentChar != 'T' and strCurrentChar != 'W' and strCurrentChar != 'Z':
+                skipSymbol = True
+
+        # second symbol cant be a number
+        if counter == 2:
             if strCurrentChar == '0':
                 strCurrentChar = 'O'
 
@@ -95,10 +103,25 @@ def recognize(image, kNearest, validContoursWithData):
                 else:
                     strCurrentChar = '0'
 
-        strFinalString = strFinalString + strCurrentChar
-        previouspreviousChar = previousChar
-        previousChar = strCurrentChar
-
+        #skip symbol or not
+        if not skipSymbol and counter <= 7:
+            strFinalString = strFinalString + strCurrentChar
+            previouspreviousChar = previousChar
+            previousChar = strCurrentChar
+            counter += 1
+        else:
+            skipSymbol = False
+    # if result is empty
+    if len(strFinalString) == 0:
+        for i in range(3):
+            strFinalString = strFinalString + '?'
+    # if result is not full and the second symbol is a number
+    for i in range(len(strFinalString)):
+        if i == 1 and len(strFinalString) < 7:
+            if strFinalString[i] == '1' or strFinalString[i] == '2' or strFinalString[i] == '3' or strFinalString[i] == '4' or \
+                    strFinalString[i] == '5' or strFinalString[i] == '6' or strFinalString[i] == '7' or \
+                    strFinalString[i] == '8' or strFinalString[i] == '9' or strFinalString[i] == '0':
+                strFinalString = '?' + strFinalString
     print(strFinalString)
     return strFinalString
 

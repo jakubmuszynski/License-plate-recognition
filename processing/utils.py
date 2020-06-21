@@ -59,6 +59,18 @@ def perform_processing(image: np.ndarray) -> str:
         # warn, resize, draw
         rep_det_all, thresh_crop_drawing = library.resizeAndWarn(rep_det, rep_det_all, thresh_crop_drawing, strFinalString1, strFinalString2)
 
+    # fill final result up to 7 elements
+    if rep_det_all:
+        strFinalString2 = library.fill(strFinalString2)
+    else:
+        strFinalString1 = library.fill(strFinalString1)
+
+    # discard elements after 7th (just to be sure)
+    if rep_det_all:
+        strFinalString2 = strFinalString2[:7]
+    else:
+        strFinalString1 = strFinalString1[:7]
+
     # stop measuring time and print
     end = time.time()
     print('I worked for', format((end - start), '.2f'), 'seconds\n')

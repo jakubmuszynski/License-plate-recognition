@@ -101,17 +101,19 @@ def preliminaryProcessing2(image, image_width):
 
 def selectionContourRatios(contours, image_width):
     result = []
+    min_ratio = 0.12
+    max_ratio = 0.88 # 0.88 - 1.02
     for c in contours:
         x, y, w, h = cv2.boundingRect(c)
         offset_min = 5
         offset_max = 15
-        prop_w_max = image_width * 426 / 4000 + offset_max    # 0.101 + offset
-        prop_h_max = image_width * 636 / 3000 + offset_max    # 0.212 + offset
-        prop_w_min = image_width * 25 / 4000 - offset_max     # 0.006 - offset (letter 'I')
-        prop_h_min = image_width * 0.0535 - offset_min  # 0.071 - offset
+        prop_w_max = image_width * 426 / 4000 + offset_max
+        prop_h_max = image_width * 636 / 3000 + offset_max
+        prop_w_min = image_width * 25 / 4000 - offset_max # letter 'I'
+        prop_h_min = image_width * 0.0535 - offset_min
         if w > prop_w_min and h > prop_h_min:
             if w < prop_w_max and h < prop_h_max:
-                if (w / h) > 0.12 and (w / h) < 0.88:
+                if (w / h) > min_ratio and (w / h) < max_ratio:
                     result.append(c)
     return result
 
@@ -233,8 +235,7 @@ def printLengthInfoOverall(groups):
         group_sizes.append(len(g))
         all_contours_number = all_contours_number + len(g)
     print('-----OVERALL DETECTION-----')
-    print("number of contours in total:", all_contours_number)
-    print("groups:", group_sizes)
+    print("number of contours in total:", all_contours_number, "grouped:", group_sizes)
 
 def printLengthInfoRepeated(groups):
     all_contours_number = 0
@@ -243,8 +244,7 @@ def printLengthInfoRepeated(groups):
         group_sizes.append(len(g))
         all_contours_number = all_contours_number + len(g)
     print('-----REPEATED DETECTION-----')
-    print("number of contours in total:", all_contours_number)
-    print("groups:", group_sizes)
+    print("number of contours in total:", all_contours_number, "grouped:", group_sizes)
 
 def cropChosenContours(image, contours):
     image_height, image_width, image_channels = image.shape
@@ -388,7 +388,7 @@ def chooseSymbols(groups):
     # every contour
     rawContoursWithData = allContoursWithData
     # discard symbols after 7th
-    allContoursWithData = allContoursWithData[:7]
+    # allContoursWithData = allContoursWithData[:7]
     return allContoursWithData, rawContoursWithData
 
 def repeatDecision(rawContoursWithData):
@@ -422,22 +422,38 @@ def resizeAndWarn(repeated_detection, repeated_detection_allowance, thresh_crop_
     return repeated_detection_allowance, thresh_crop_drawing
 
 def RDA(repeated_detection_allowance, strFinalString1, strFinalString2):
-    if strFinalString2[0] != 'B' and strFinalString2[0] != 'C' and strFinalString2[0] != 'D' and strFinalString2[
-        0] != 'E' and strFinalString2[0] != 'F' and strFinalString2[0] != 'G' and strFinalString2[0] != 'K' and \
-            strFinalString2[0] != 'L' and strFinalString2[0] != 'N' and strFinalString2[0] != 'O' and strFinalString2[
-        0] != 'P' and strFinalString2[0] != 'R' and strFinalString2[0] != 'S' and strFinalString2[0] != 'T' and \
-            strFinalString2[0] != 'W' and strFinalString2[0] != 'Z':
-        repeated_detection_allowance = False
-        print('WARNING: incorrect first character in repeated detection - rejecting')
-    if strFinalString2[1] == '1' or strFinalString2[1] == '2' or strFinalString2[1] == '3' or strFinalString2[
-        1] == '4' or strFinalString2[1] == '5' or strFinalString2[1] == '6' or strFinalString2[1] == '7' or \
-            strFinalString2[1] == '8' or strFinalString2[1] == '9':
-        repeated_detection_allowance = False
-        print('WARNING: incorrect second character in repeated detection - rejecting')
+    for i in range(len(strFinalString2)):
+        if i == 0:
+            if strFinalString2[i] != 'B' and strFinalString2[i] != 'C' and strFinalString2[i] != 'D' and \
+                    strFinalString2[i] != 'E' and strFinalString2[i] != 'F' and strFinalString2[i] != 'G' and \
+                    strFinalString2[i] != 'K' and strFinalString2[i] != 'L' and strFinalString2[i] != 'N' and \
+                    strFinalString2[i] != 'O' and strFinalString2[i] != 'P' and strFinalString2[i] != 'R' and \
+                    strFinalString2[i] != 'S' and strFinalString2[i] != 'T' and strFinalString2[i] != 'W' and \
+                    strFinalString2[i] != 'Z':
+                repeated_detection_allowance = False
+                print('WARNING: incorrect first character in repeated detection - rejecting')
+        if i == 1:
+            if strFinalString2[i] == '1' or strFinalString2[i] == '2' or strFinalString2[i] == '3' or \
+                    strFinalString2[i] == '4' or strFinalString2[i] == '5' or strFinalString2[i] == '6' or \
+                    strFinalString2[i] == '7' or strFinalString2[i] == '8' or strFinalString2[i] == '9':
+                repeated_detection_allowance = False
+                print('WARNING: incorrect second character in repeated detection - rejecting')
     if len(strFinalString2) < len(strFinalString1):
         repeated_detection_allowance = False
         print('WARNING: incorrect repeated detection result size - rejecting')
     return repeated_detection_allowance
+
+def fill(strFinalString):
+    if len(strFinalString) < 7:
+        for i in range(7 - int(len(strFinalString))):
+            strFinalString = strFinalString + '?'
+    return strFinalString
+
+def discardAfter7th(strFinalString):
+    if len(strFinalString) > 7:
+        for i in range(7 - int(len(strFinalString))):
+            strFinalString = strFinalString + '?'
+    return strFinalString
 
 def drawContours(contours, image):
     for c in contours:

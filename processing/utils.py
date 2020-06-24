@@ -23,41 +23,50 @@ def perform_processing(image: np.ndarray) -> str:
     #------------------------detection/selection-------------------------
     # get input image dimensions
     image_height, image_width, image_channels = image.shape
-    # initial image processing
-    thresh, contours = library.preliminaryProcessing(image, image_width)
-    # selecting contours
-    contours = library.selection(contours, image_width)
 
-    #------------------------------grouping------------------------------
-    # create list of lists containing groups of contours
-    groups = library.grouping(contours, image_width * 0.12)
-    # print info about number of contours
-    library.printLengthInfoOverall(groups)
+    rep_det_all = False
+    try:
+        # initial image processing
+        thresh, contours = library.preliminaryProcessing(image, image_width)
+        # selecting contours
+        contours = library.selection(contours, image_width)
 
-    #--------------------------final selection---------------------------
-    # choose contours
-    allContoursWithData, rawContoursWithData = library.chooseSymbols(groups)
-    # create final contours list
-    validContoursWithData = OCR_library.createValidContoursList(allContoursWithData)
+        # ------------------------------grouping------------------------------
+        # create list of lists containing groups of contours
+        groups = library.grouping(contours, image_width * 0.12)
+        # print info about number of contours
+        library.printLengthInfoOverall(groups)
 
-    #----------------------------recognition-----------------------------
-    # recognize characters and print
-    strFinalString1 = OCR_library.recognize(thresh, kNearest, validContoursWithData)
+        #--------------------------final selection---------------------------
+        # choose contours
+        allContoursWithData, rawContoursWithData = library.chooseSymbols(groups)
+        # create final contours list
+        validContoursWithData = OCR_library.createValidContoursList(allContoursWithData)
 
-    #--------------------------draw and resize---------------------------
-    thresh_drawing = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-    library.drawGroups(groups, thresh_drawing)
-    thresh_drawing = library.resizeImage(thresh_drawing, 1000)
+        #----------------------------recognition-----------------------------
+        # recognize characters and print
+        strFinalString1 = OCR_library.recognize(thresh, kNearest, validContoursWithData)
 
-    #--------------------repeated detection/selection--------------------
-    # decide whether to repeat the process or not
-    rep_det, rep_det_all = library.repeatDecision(rawContoursWithData)
-    # if yes
-    if rep_det:
-        # repeated detection/selection
-        strFinalString2, thresh_crop_drawing = library.repeatedDetection(kNearest, rawContoursWithData, thresh, image_width)
-        # warn, resize, draw
-        rep_det_all, thresh_crop_drawing = library.resizeAndWarn(rep_det, rep_det_all, thresh_crop_drawing, strFinalString1, strFinalString2)
+        #--------------------------draw and resize---------------------------
+        # thresh_drawing = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+        # library.drawGroups(groups, thresh_drawing)
+        # thresh_drawing = library.resizeImage(thresh_drawing, 1000)
+
+        #--------------------repeated detection/selection--------------------
+        # decide whether to repeat the process or not
+        rep_det, rep_det_all = library.repeatDecision(rawContoursWithData)
+        # if yes
+        if rep_det:
+            try:
+                # repeated detection/selection
+                strFinalString2, thresh_crop_drawing = library.repeatedDetection(kNearest, rawContoursWithData, thresh, image_width)
+                # warn, resize, draw
+                rep_det_all, thresh_crop_drawing = library.resizeAndWarn(rep_det, rep_det_all, thresh_crop_drawing, strFinalString1, strFinalString2)
+            except:
+                strFinalString2 = '???'
+    except:
+        strFinalString1 = '???'
+
 
     # fill final result up to 7 elements
     if rep_det_all:
@@ -76,11 +85,11 @@ def perform_processing(image: np.ndarray) -> str:
     print('I worked for', format((end - start), '.2f'), 'seconds\n')
 
     # show result images
-    cv2.imshow('threshold image', thresh_drawing)
-    if rep_det:
-        cv2.imshow('crop result', thresh_crop_drawing)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('threshold image', thresh_drawing)
+    # if rep_det:
+    #     cv2.imshow('crop result', thresh_crop_drawing)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     if rep_det_all:
         return strFinalString2

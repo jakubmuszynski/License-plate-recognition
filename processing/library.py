@@ -37,8 +37,12 @@ def calculateAverageHeight(contours):
     for c in contours:
         x, y, w, h = cv2.boundingRect(c)
         result = result + h
-    result = result / len(contours)
-    return result
+    if len(contours) > 0:
+        result = result / len(contours)
+        return result
+    else:
+        result = 0
+        return result
 
 def calculateMaxHeight(contours):
     result = 0
@@ -66,8 +70,11 @@ def calculateAverageArea(contours):
     for c in contours:
         x, y, w, h = cv2.boundingRect(c)
         result = result + (w * h)
-    result = result / len(contours)
-    return result
+    if len(contours) > 0:
+        result = result / len(contours)
+        return result
+    else:
+        return 12000000
 
 def calculateMaxArea(contours):
     result = 0
@@ -140,12 +147,15 @@ def selectionAverageHeight(contours, image_width):
     for c in contours:
         x, y, w, h = cv2.boundingRect(c)
         avg_h = avg_h + h
-    avg_h = avg_h / len(contours)
-    for c in contours:
-        x, y, w, h = cv2.boundingRect(c)
-        if h < (avg_h + difference) and h > (avg_h - difference):
-            result.append(c)
-    return result
+    if len(contours) > 0:
+        avg_h = avg_h / len(contours)
+        for c in contours:
+            x, y, w, h = cv2.boundingRect(c)
+            if h < (avg_h + difference) and h > (avg_h - difference):
+                result.append(c)
+        return result
+    else:
+        return image_width
 
 def discardDuplicates(contours):
     result = []
